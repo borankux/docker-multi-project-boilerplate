@@ -1,0 +1,160 @@
+version: '3'
+
+networks:
+  frontend:
+    driver: ${NETWORKS_DRIVER}
+  backend:
+    driver: ${NETWORKS_DRIVER}
+
+volumes:
+  mysql:
+    driver: ${VOLUMES_DRIVER}
+  redis:
+    driver: ${VOLUMES_DRIVER}
+
+services:
+
+### PHP-FPM ##############################################
+    php-fpm:
+      container_name: ${APP_NAME}_php-fpm
+      image: ${IMAGE_ID}/php-fpm
+      volumes:
+        - ./images/php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      expose:
+        - "9000"
+      extra_hosts:
+        - "dockerhost:${DOCKER_HOST_IP}"
+      environment:
+        - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+      networks:
+        - backend
+
+
+### NGINX Server #########################################
+    api:
+      container_name: ${APP_NAME}_api
+      image: mirzatsoft/nginx
+      volumes:
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+        - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+        - ${NGINX_SITES_PATH}/api/http.conf.template:/etc/nginx/sites-available/http.conf
+      expose:
+        - 80
+        - 443
+      depends_on:
+        - php-fpm
+      environment:
+        - VIRTUAL_HOST=api.${APP_NAME}.${APP_DOMAIN_SUFFIX}
+      networks:
+        - frontend
+        - backend
+
+    front:
+      container_name: ${APP_NAME}_front
+      image: mirzatsoft/nginx
+      volumes:
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+        - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+        - ${NGINX_SITES_PATH}/front/http.conf.template:/etc/nginx/sites-available/http.conf
+      expose:
+        - 80
+        - 443
+      depends_on:
+        - php-fpm
+      environment:
+        - VIRTUAL_HOST=front.${APP_NAME}.${APP_DOMAIN_SUFFIX}
+      networks:
+        - frontend
+        - backend
+
+
+
+
+################################################################
+### Local                                                    ###
+################################################################
+
+### Test Reverse proxy #########################################
+    local-proxy:
+      container_name: ${APP_NAME}_local-proxy
+      image: jwilder/nginx-proxy
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+        - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+      networks:
+        - frontend
+
+### MySQL ################################################
+    mysql:
+      container_name: ${APP_NAME}_mysql
+      image: mirzatsoft/mysql
+      environment:
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        - TZ=${WORKSPACE_TIMEZONE}
+      volumes:
+        - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+        - ${MYSQL_ENTRYPOINT_INITDB}:/docker-entrypoint-initdb.d
+      ports:
+        - "${MYSQL_PORT}:3306"
+      networks:
+        - backend
+
+### Redis ################################################
+    redis:
+      container_name: ${APP_NAME}_redis
+      image: mirzatsoft/redis
+      volumes:
+        - ${DATA_PATH_HOST}/redis:/data
+      ports:
+        - "${REDIS_PORT}:6379"
+      networks:
+        - backend
+
+### Swagger-editor ##############################################
+    swagger-editor:
+      container_name: ${APP_NAME}_swagger-editor
+      image: swaggerapi/swagger-editor
+      expose:
+        - 8080
+      environment:
+        - VIRTUAL_HOST=swagger-editor.${APP_NAME}.${APP_DOMAIN_SUFFIX}
+      networks:
+        - frontend
+### Workspace Utilities ##################################
+    workspace:
+      container_name: ${APP_NAME}_workspace
+      image: mirzatsoft/workspace
+      volumes:
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      extra_hosts:
+        - "dockerhost:${DOCKER_HOST_IP}"
+      ports:
+        - "${WORKSPACE_SSH_PORT}:22"
+      tty: true
+      environment:
+        - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+      networks:
+        - frontend
+        - backend
+
+### PHP Worker ############################################
+    php-worker:
+      container_name: ${APP_NAME}_php-worker
+      image: mirzatsoft/php-worker
+      volumes:
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      depends_on:
+        - workspace
+      extra_hosts:
+        - "dockerhost:${DOCKER_HOST_IP}"
+      networks:
+        - backend
+
+

@@ -2,48 +2,48 @@
     "version": "3",
     "networks": {
         "frontend": {
-            "driver": "${NETWORKS_DRIVER}"
+            "driver": "bridge"
         },
         "backend": {
-            "driver": "${NETWORKS_DRIVER}"
+            "driver": "bridge"
         }
     },
     "volumes": {
         "mysql": {
-            "driver": "${VOLUMES_DRIVER}"
+            "driver": "local"
         },
         "redis": {
-            "driver": "${VOLUMES_DRIVER}"
+            "driver": "local"
         }
     },
     "services": {
         "php-fpm": {
-            "container_name": "${APP_NAME}_php-fpm",
-            "image": "${IMAGE_ID}/php-fpm",
+            "container_name": "mirzat_php-fpm",
+            "image": "mirzatsoft/php-fpm",
             "volumes": [
-                "./images/php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini",
-                "${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}"
+                "./images/php-fpm/php7.2.ini:/usr/local/etc/php/php.ini",
+                "../src/:/var/www:cached"
             ],
             "expose": [
                 "9000"
             ],
             "extra_hosts": [
-                "dockerhost:${DOCKER_HOST_IP}"
+                "dockerhost:10.0.75.1"
             ],
             "environment": [
-                "PHP_IDE_CONFIG=${PHP_IDE_CONFIG}"
+                "PHP_IDE_CONFIG=serverName=php-fpm"
             ],
             "networks": [
                 "backend"
             ]
         },
         "api": {
-            "container_name": "${APP_NAME}_api",
+            "container_name": "mirzat_api",
             "image": "mirzatsoft/nginx",
             "volumes": [
-                "${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}",
-                "${NGINX_HOST_LOG_PATH}:/var/log/nginx",
-                "${NGINX_SITES_PATH}/api/http.conf.template:/etc/nginx/sites-available/http.conf"
+                "../src/:/var/www:cached",
+                "./images/logs/nginx/:/var/log/nginx",
+                "./nginx/sites//api/http.conf.template:/etc/nginx/sites-available/http.conf"
             ],
             "expose": [
                 80,
@@ -53,7 +53,7 @@
                 "php-fpm"
             ],
             "environment": [
-                "VIRTUAL_HOST=api.${APP_NAME}.${APP_DOMAIN_SUFFIX}"
+                "VIRTUAL_HOST=api.mirzat.com.local"
             ],
             "networks": [
                 "frontend",
@@ -61,12 +61,12 @@
             ]
         },
         "front": {
-            "container_name": "${APP_NAME}_front",
+            "container_name": "mirzat_front",
             "image": "mirzatsoft/nginx",
             "volumes": [
-                "${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}",
-                "${NGINX_HOST_LOG_PATH}:/var/log/nginx",
-                "${NGINX_SITES_PATH}/front/http.conf.template:/etc/nginx/sites-available/http.conf"
+                "../src/:/var/www:cached",
+                "./images/logs/nginx/:/var/log/nginx",
+                "./nginx/sites//front/http.conf.template:/etc/nginx/sites-available/http.conf"
             ],
             "expose": [
                 80,
@@ -76,7 +76,7 @@
                 "php-fpm"
             ],
             "environment": [
-                "VIRTUAL_HOST=front.${APP_NAME}.${APP_DOMAIN_SUFFIX}"
+                "VIRTUAL_HOST=front.mirzat.com.local"
             ],
             "networks": [
                 "frontend",
@@ -84,7 +84,7 @@
             ]
         },
         "local-proxy": {
-            "container_name": "${APP_NAME}_local-proxy",
+            "container_name": "mirzat_local-proxy",
             "image": "jwilder/nginx-proxy",
             "ports": [
                 "80:80",
@@ -92,74 +92,74 @@
             ],
             "volumes": [
                 "/var/run/docker.sock:/tmp/docker.sock:ro",
-                "${NGINX_HOST_LOG_PATH}:/var/log/nginx"
+                "./images/logs/nginx/:/var/log/nginx"
             ],
             "networks": [
                 "frontend"
             ]
         },
         "mysql": {
-            "container_name": "${APP_NAME}_mysql",
+            "container_name": "mirzat_mysql",
             "image": "mirzatsoft/mysql",
             "environment": [
-                "MYSQL_DATABASE=${MYSQL_DATABASE}",
-                "MYSQL_USER=${MYSQL_USER}",
-                "MYSQL_PASSWORD=${MYSQL_PASSWORD}",
-                "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}",
-                "TZ=${WORKSPACE_TIMEZONE}"
+                "MYSQL_DATABASE=default",
+                "MYSQL_USER=default",
+                "MYSQL_PASSWORD=secret",
+                "MYSQL_ROOT_PASSWORD=root",
+                "TZ=UTC"
             ],
             "volumes": [
-                "${DATA_PATH_HOST}/mysql:/var/lib/mysql",
-                "${MYSQL_ENTRYPOINT_INITDB}:/docker-entrypoint-initdb.d"
+                "~/.mirzat/dock/data/mysql:/var/lib/mysql",
+                "./images/mysql/docker-entrypoint:/docker-entrypoint-initdb.d"
             ],
             "ports": [
-                "${MYSQL_PORT}:3306"
+                "3306:3306"
             ],
             "networks": [
                 "backend"
             ]
         },
         "redis": {
-            "container_name": "${APP_NAME}_redis",
+            "container_name": "mirzat_redis",
             "image": "mirzatsoft/redis",
             "volumes": [
-                "${DATA_PATH_HOST}/redis:/data"
+                "~/.mirzat/dock/data/redis:/data"
             ],
             "ports": [
-                "${REDIS_PORT}:6379"
+                "6379:6379"
             ],
             "networks": [
                 "backend"
             ]
         },
         "swagger-editor": {
-            "container_name": "${APP_NAME}_swagger-editor",
+            "container_name": "mirzat_swagger-editor",
             "image": "swaggerapi/swagger-editor",
             "expose": [
                 8080
             ],
             "environment": [
-                "VIRTUAL_HOST=swagger-editor.${APP_NAME}.${APP_DOMAIN_SUFFIX}"
+                "VIRTUAL_HOST=swagger-editor.mirzat.com.local"
             ],
             "networks": [
                 "frontend"
             ]
         },
         "workspace": {
-            "container_name": "${APP_NAME}_workspace",
+            "container_name": "mirzat_workspace",
             "image": "mirzatsoft/workspace",
             "volumes": [
-                "${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}"
+                "../src/:/var/www:cached"
             ],
             "extra_hosts": [
-                "dockerhost:${DOCKER_HOST_IP}"
+                "dockerhost:10.0.75.1"
             ],
             "ports": [
-                "${WORKSPACE_SSH_PORT}:22"
+                "2222:22"
             ],
             "tty": true,
             "environment": [
-                "PHP_IDE_CONFIG=${PHP_IDE_CONFIG}"
+                "PHP_IDE_CONFIG=serverName=php-fpm"
             ],
             "networks": [
                 "frontend",
@@ -167,16 +167,16 @@
             ]
         },
         "php-worker": {
-            "container_name": "${APP_NAME}_php-worker",
+            "container_name": "mirzat_php-worker",
             "image": "mirzatsoft/php-worker",
             "volumes": [
-                "${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}"
+                "../src/:/var/www:cached"
             ],
             "depends_on": [
                 "workspace"
             ],
             "extra_hosts": [
-                "dockerhost:${DOCKER_HOST_IP}"
+                "dockerhost:10.0.75.1"
             ],
             "networks": [
                 "backend"

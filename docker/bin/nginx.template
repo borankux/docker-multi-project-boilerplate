@@ -1,0 +1,15 @@
+{
+  "${SITE_NAME}": {
+    "container_name": "${APP_NAME}_${SITE_NAME}",
+    "image": "mirzatsoft/nginx",
+    "volumes": [
+      "../src/:/var/www:cached",
+      "./images/logs/nginx/:/var/log/nginx",
+      "./nginx/sites/${SITE_NAME}/http.conf.template:/etc/nginx/sites-available/http.conf"
+      ],
+    "expose": [80, 443],
+    "depends_on": ["php-fpm"],
+    "environment": ["VIRTUAL_HOST=${SITE_NAME}.${APP_NAME}.com.local"],
+    "networks": ["frontend", "backend"]
+   }
+}
